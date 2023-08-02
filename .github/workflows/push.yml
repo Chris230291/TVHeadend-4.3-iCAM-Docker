@@ -56,7 +56,7 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: Dockerfile
+        file: Dockerfile.armhf
         platforms: linux/arm/v7
         push: true
         build-args: TVHEADEND_COMMIT=${{ env.commit }}
