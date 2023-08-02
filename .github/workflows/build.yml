@@ -1,0 +1,36 @@
+name: Build
+
+on:
+  push:
+    paths: [ patches/*, Dockerfile* ]
+  pull_request:
+    types:
+      - created
+      - opened
+      - synchronize
+      - reopened
+      - edited
+    paths: [ patches/*, Dockerfile* ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        platform:
+          - "linux/amd64"
+          - "linux/arm/v7"
+          - "linux/arm64"
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: QEMU
+      if: matrix.platform != 'linux/amd64'
+      run: docker run --workdir "${GITHUB_WORKSPACE}" --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Build
+      run: docker buildx build . --file $([ "${{ matrix.platform }}" == "linux/arm/v7" ] && echo 'Dockerfile.armhf' || echo "Dockerfile") --platform ${{ matrix.platform }} --tag my-test:$(date +%s)
+

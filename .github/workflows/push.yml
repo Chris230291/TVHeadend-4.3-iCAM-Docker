@@ -1,0 +1,64 @@
+name: Build and push to docker hub
+
+on:
+#  schedule:
+#    - cron: '0 */12 * * *'
+
+  workflow_dispatch:
+
+jobs:
+  docker:
+    name: push
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup variables
+      run: |
+        TVHEADEND_COMMIT=$(curl -sX GET https://api.github.com/repos/tvheadend/tvheadend/commits/master | jq -r '. | .sha')
+        echo "commit=$(echo ${TVHEADEND_COMMIT})" >> $GITHUB_ENV
+        echo "tag=$(echo ${TVHEADEND_COMMIT} | cut -c1-7)" >> $GITHUB_ENV
+        echo "dtag=$(curl -sX GET https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend/tags?page_size=2 | jq '."results"[]["name"]' | grep version | awk -F'version-' '{print $NF}' | cut -c1-7)" >> $GITHUB_ENV
+        echo "dtag_armv7=$(curl -sX GET https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend-armv7/tags?page_size=2 | jq '."results"[]["name"]' | grep version | awk -F'version-' '{print $NF}' | cut -c1-7)" >> $GITHUB_ENV
+
+    - name: Set up QEMU
+      if: env.commit != '' && env.commit != 'null' && (env.tag != env.dtag || env.tag != env.dtag_armv7)
+      uses: docker/setup-qemu-action@v2
+      with:
+        platforms: 'linux/arm/v7,linux/arm64'
+
+    - name: Set up Docker Buildx
+      if: env.commit != '' && env.commit != 'null' && (env.tag != env.dtag || env.tag != env.dtag_armv7)
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub
+      if: env.commit != '' && env.commit != 'null' && (env.tag != env.dtag || env.tag != env.dtag_armv7)
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+    - name: Build and push
+      if: env.commit != '' && env.commit != 'null' && env.tag != env.dtag 
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        build-args: TVHEADEND_COMMIT=${{ env.commit }}
+        tags: ${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend:version-${{ env.tag }},${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend:latest
+
+    - name: Build and push (armv7)
+      if: env.commit != '' && env.commit != 'null' && env.tag != env.dtag_armv7 
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: Dockerfile
+        platforms: linux/arm/v7
+        push: true
+        build-args: TVHEADEND_COMMIT=${{ env.commit }}
+        tags: ${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend-armv7:version-${{ env.tag }},${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend-armv7:latest
+
