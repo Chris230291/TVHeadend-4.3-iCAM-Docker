@@ -1,8 +1,8 @@
 name: Build and push to docker hub
 
 on:
-#  schedule:
-#    - cron: '0 */12 * * *'
+  schedule:
+    - cron: '0 0 * * *'
 
   workflow_dispatch:
 
@@ -21,7 +21,7 @@ jobs:
         echo "commit=$(echo ${TVHEADEND_COMMIT})" >> $GITHUB_ENV
         echo "tag=$(echo ${TVHEADEND_COMMIT} | cut -c1-7)" >> $GITHUB_ENV
         echo "dtag=$(curl -sX GET https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend/tags?page_size=2 | jq '."results"[]["name"]' | grep version | awk -F'version-' '{print $NF}' | cut -c1-7)" >> $GITHUB_ENV
-        echo "dtag_armv7=$(curl -sX GET https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend-armv7/tags?page_size=2 | jq '."results"[]["name"]' | grep version | awk -F'version-' '{print $NF}' | cut -c1-7)" >> $GITHUB_ENV
+        echo "dtag_armv7=$(curl -sX GET https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_HUB_USERNAME }}/tvheadend-armv7/tags?page_size=2 | jq '."results"[]["name"]' | grep version | awk -F'version-' '{print $NF}' | head -n1 | cut -c1-7)" >> $GITHUB_ENV
 
     - name: Set up QEMU
       if: env.commit != '' && env.commit != 'null' && (env.tag != env.dtag || env.tag != env.dtag_armv7)
